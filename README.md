@@ -8,5 +8,18 @@ Authors:
 - Jonas Stenglein
 - Tim Dannewitz
 
+## Subgroups
+
+### Group Data collection and preprocessing
+  - Carlo
+
+### Spike optimization
+  - 
+
+### Model  
+  - Daniele
+  - Giacomo
+
 ## Tecnical info
 Consider lower activation model for spike
+using the distance of the fingers from the palm and the position of the palm
