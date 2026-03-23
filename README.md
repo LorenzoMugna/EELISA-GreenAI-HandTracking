@@ -8,3 +8,5 @@ Authors:
 - Jonas Stenglein
 - Tim Dannewitz
 
+## Tecnical info
+Consider lower activation model for spike
