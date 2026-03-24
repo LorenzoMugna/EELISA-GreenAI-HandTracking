@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
 
-from lts_neuron import A, B, C, D, DT, V_PEAK
+from lts_neuron import B, C, DT, neuron_step
 
 N_CHANNELS  = 5
 WINDOW_MS   = 500.0   # visible time in the raster (ms)
@@ -45,11 +45,8 @@ def simulation_thread() -> None:
         t0 = time.perf_counter()
         for _ in range(steps):
             for i in range(N_CHANNELS):
-                v[i] += DT * (0.04 * v[i]**2 + 5.0 * v[i] + 140.0 - u[i] + currents[i])
-                u[i] += DT * A * (B * v[i] - u[i])
-                if v[i] >= V_PEAK:
-                    v[i]  = C
-                    u[i] += D
+                v[i], u[i], spiked = neuron_step(v[i], u[i], currents[i])
+                if spiked:
                     spike_queue.put((sim_time, i))
             sim_time += DT
         sim_time_ref[0] = sim_time
