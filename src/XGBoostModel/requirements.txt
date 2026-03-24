@@ -1,0 +1,3 @@
+XGBoost
+scikit-learn
+cupy-cuda12x

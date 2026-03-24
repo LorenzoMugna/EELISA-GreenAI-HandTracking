@@ -332,6 +332,10 @@ class DataStore:
         """
         with self._model_lock:
             return self._model
+        
+    def get_digit_distances(self) -> List[float]:
+        # digit_0_distance;digit_1_distance;digit_2_distance;digit_3_distance;digit_4_distance
+        return [self.get_value(f"digit_{i}_distance") for i in range(5)]
 
     # =========================================================================
     # Aggregate methods
