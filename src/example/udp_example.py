@@ -85,10 +85,13 @@ def run_receiver():
             time.sleep(1)
             print("\n--- Current State ---")
             print(f"Spike counts: {data_store.get_all_spike_counts()}")
+            print(f"Firing rates: {data_store.get_all_firing_rates()}")
+            print(f"IAT variances: {data_store.get_all_inter_arrival_variances()}")
             print(f"Values: {data_store.get_all_values()}")
             print(f"Coordinates: {data_store.get_all_coordinates()}")
             model = data_store.get_model()
             print(f"Model: {type(model).__name__ if model else 'None'}")
+            print(f"\nAll features: {data_store.get_all_features()}")
     except KeyboardInterrupt:
         print("\nStopping receiver...")
         receiver.stop()
@@ -101,45 +104,43 @@ def run_local_test():
     print("Testing with loopback (127.0.0.1)")
     print()
 
-    # Override config for local testing
-    udp.config._config = udp.UDPConfig(
-        sender_ip="127.0.0.1",
-        sender_port=5005,
-        receiver_ip="127.0.0.1",
-        receiver_port=5005,  # Same port for local test
-        buffer_size=65535,
-        timeout=5,
+    # Create data store with auto_cleanup enabled
+    data_store = udp.DataStore(
         num_spike_queues=5,
         spike_window_ms=1000,
         cleanup_interval_ms=100,
+        auto_cleanup=True
     )
 
-    # Create data store
-    data_store = udp.DataStore(num_spike_queues=5, spike_window_ms=1000)
-
-    # Start receiver
-    receiver = udp.UDPReceiver(data_store)
+    # Start receiver with explicit IP/port (override config)
+    receiver = udp.UDPReceiver(data_store, ip="127.0.0.1", port=5005)
     receiver.start()
-    print("Receiver started")
+    print(f"Receiver started on {receiver.ip}:{receiver.port}")
     time.sleep(0.1)
+
+    # Configure sender to send to localhost
+    udp.configure(ip="127.0.0.1", port=5005)
+    sender = udp.get_sender()
+    print(f"Sender configured to {sender.ip}:{sender.port}")
 
     # Send test data
     print("\nSending test data...")
 
-    # Send spikes
+    # Send spikes with small delays to create inter-arrival times
     for i in range(10):
         udp.send_spike(i % 5)
-    print(f"  Sent 10 spikes")
+        time.sleep(0.05)  # 50ms between spikes
+    print("  Sent 10 spikes (with 50ms intervals)")
 
     # Send coordinates
     udp.send_coordinate("palm", 1.0, 2.0, 3.0)
     udp.send_coordinate("index_tip", 4.0, 5.0, 6.0)
-    print(f"  Sent 2 coordinates")
+    print("  Sent 2 coordinates")
 
     # Send values
     udp.send_value("feature_a", 100)
     udp.send_value("feature_b", 200)
-    print(f"  Sent 2 values")
+    print("  Sent 2 values")
 
     # Wait for processing
     time.sleep(0.2)
@@ -147,16 +148,26 @@ def run_local_test():
     # Check results
     print("\n=== Results ===")
     print(f"Spike counts: {data_store.get_all_spike_counts()}")
+    print(f"Firing rates (Hz): {data_store.get_all_firing_rates()}")
+    print(f"IAT variances (ms^2): {data_store.get_all_inter_arrival_variances()}")
     print(f"Values: {data_store.get_all_values()}")
     print(f"Coordinates: {data_store.get_all_coordinates()}")
+
+    # Show all features for inference
+    print("\n=== All Features (for inference) ===")
+    features = data_store.get_all_features()
+    for key, value in sorted(features.items()):
+        print(f"  {key}: {value}")
 
     # Test spike window cleanup
     print("\nWaiting 1.5s to test spike cleanup...")
     time.sleep(1.5)
     print(f"Spike counts after cleanup: {data_store.get_all_spike_counts()}")
+    print(f"Firing rates after cleanup: {data_store.get_all_firing_rates()}")
 
     # Cleanup
     receiver.stop()
+    data_store.stop_cleanup()
     print("\nTest complete!")
 
 
@@ -168,7 +179,23 @@ def main():
         default="local",
         help="Run as sender, receiver, or local test (default: local)"
     )
+    parser.add_argument(
+        "--ip",
+        default=None,
+        help="Override IP address for sender/receiver"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Override port for sender/receiver"
+    )
     args = parser.parse_args()
+
+    # Apply IP/port overrides if provided
+    if args.mode == "sender" and (args.ip or args.port):
+        udp.configure(ip=args.ip, port=args.port)
+        print(f"Configured sender target: {args.ip or 'default'}:{args.port or 'default'}")
 
     if args.mode == "sender":
         run_sender()

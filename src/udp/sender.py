@@ -12,10 +12,41 @@ from .config import get_config
 class UDPSender:
     """UDP Sender that handles all outgoing UDP packets."""
 
-    def __init__(self):
+    def __init__(self, ip: str = None, port: int = None):
+        """Initialize the UDP sender.
+
+        Args:
+            ip: Target IP address. If None, uses config value.
+            port: Target port. If None, uses config value.
+        """
         self._config = get_config()
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._target = (self._config.receiver_ip, self._config.receiver_port)
+
+        # Use provided IP/port or fall back to config
+        self._ip = ip if ip is not None else self._config.receiver_ip
+        self._port = port if port is not None else self._config.receiver_port
+        self._target = (self._ip, self._port)
+
+    @property
+    def ip(self) -> str:
+        """Get the target IP address."""
+        return self._ip
+
+    @property
+    def port(self) -> int:
+        """Get the target port."""
+        return self._port
+
+    def set_target(self, ip: str, port: int) -> None:
+        """Change the target IP and port.
+
+        Args:
+            ip: New target IP address.
+            port: New target port.
+        """
+        self._ip = ip
+        self._port = port
+        self._target = (ip, port)
 
     def send(self, message: Union[str, bytes]) -> None:
         """Send a raw message via UDP.
@@ -104,12 +135,35 @@ class UDPSender:
 _sender: UDPSender = None
 
 
-def get_sender() -> UDPSender:
-    """Get the global UDP sender instance (singleton)."""
+def get_sender(ip: str = None, port: int = None) -> UDPSender:
+    """Get the global UDP sender instance (singleton).
+
+    Args:
+        ip: Target IP address. Only used on first call.
+        port: Target port. Only used on first call.
+
+    Returns:
+        The global UDPSender instance.
+    """
     global _sender
     if _sender is None:
-        _sender = UDPSender()
+        _sender = UDPSender(ip=ip, port=port)
     return _sender
+
+
+def configure(ip: str = None, port: int = None) -> None:
+    """Configure the global sender with a new target.
+
+    Args:
+        ip: New target IP address.
+        port: New target port.
+    """
+    sender = get_sender()
+    if ip is not None or port is not None:
+        sender.set_target(
+            ip if ip is not None else sender.ip,
+            port if port is not None else sender.port
+        )
 
 
 def send(message: Union[str, bytes]) -> None:

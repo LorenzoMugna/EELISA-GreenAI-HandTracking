@@ -7,6 +7,9 @@ use functions like `udp.send()` without worrying about addresses.
 Sender Usage:
     import udp
 
+    # Configure target (optional, defaults to config.config values)
+    udp.configure(ip="192.168.1.100", port=5006)
+
     # Send raw message
     udp.send("Hello")
 
@@ -28,50 +31,57 @@ Receiver Usage:
     # Create a data store (you own this, pass it to receiver)
     data_store = udp.DataStore(num_spike_queues=5, spike_window_ms=1000)
 
-    # Create and start receiver
-    receiver = udp.UDPReceiver(data_store)
+    # Create and start receiver (with optional IP/port override)
+    receiver = udp.UDPReceiver(data_store, ip="0.0.0.0", port=5006)
     receiver.start()
 
     # Access data from your code
     spike_counts = data_store.get_all_spike_counts()
+    firing_rates = data_store.get_all_firing_rates()
+    variances = data_store.get_all_inter_arrival_variances()
     palm_coords = data_store.get_coordinate("palm")
     feature_value = data_store.get_value("feature_1")
+
+    # Get all features as a single dict for inference
+    features = data_store.get_all_features()
 
     # Stop when done
     receiver.stop()
 """
 
+from . import config
 from .config import UDPConfig, load_config, get_config
+from .datastore import DataStore, SpikeCleanupThread
 from .sender import (
     UDPSender,
     get_sender,
+    configure,
     send,
     send_spike,
     send_model,
     send_coordinate,
     send_value,
 )
-from .receiver import (
-    DataStore,
-    SpikeCleanupThread,
-    UDPReceiver,
-)
+from .receiver import UDPReceiver
 
 __all__ = [
     # Config
+    "config",
     "UDPConfig",
     "load_config",
     "get_config",
+    # DataStore
+    "DataStore",
+    "SpikeCleanupThread",
     # Sender
     "UDPSender",
     "get_sender",
+    "configure",
     "send",
     "send_spike",
     "send_model",
     "send_coordinate",
     "send_value",
     # Receiver
-    "DataStore",
-    "SpikeCleanupThread",
     "UDPReceiver",
 ]
