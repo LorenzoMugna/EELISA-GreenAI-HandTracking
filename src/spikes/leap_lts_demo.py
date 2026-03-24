@@ -18,6 +18,7 @@ import math
 import queue
 import threading
 import time
+import sys
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
@@ -28,11 +29,18 @@ from leap import datatypes as ldt
 from leap.events import Event, TrackingEvent
 from matplotlib.widgets import RadioButtons
 
+
+import pathlib, sys as _sys
+_sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+import udp
+
 from lts_neuron import B, C, DT, neuron_step
 from encoding import (N_FINGERS, N_CHANNELS,
                       tonic_features_to_currents,
                       phasic_features_to_currents,
                       rotation_deg as compute_rotation_deg)
+
+use_udp = True  # overridden by --no-udp CLI flag
 
 # ── constants ─────────────────────────────────────────────────────────────────
 WINDOW_MS      = 500.0
@@ -339,6 +347,8 @@ def run_gui() -> None:
         while not spike_queue.empty():
             try:
                 t, ch = spike_queue.get_nowait()
+                if use_udp:
+                    udp.send_spike(ch)
                 spike_history.append((t, ch))
             except queue.Empty:
                 break
@@ -363,9 +373,20 @@ def run_gui() -> None:
 
 # ── entry point ───────────────────────────────────────────────────────────────
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-udp", action="store_true", help="disable UDP spike sending")
+    parser.add_argument("--udp-ip", default="10.97.150.1", help="UDP target IP (default: 10.97.150.1)")
+    args = parser.parse_args()
+
+    global use_udp
+    use_udp = not args.no_udp
+
     listener   = FingertipListener()
     connection = leap.Connection()
     connection.add_listener(listener)
+    if use_udp:
+        udp.configure(ip=args.udp_ip)
 
     with connection.open():
         try:
