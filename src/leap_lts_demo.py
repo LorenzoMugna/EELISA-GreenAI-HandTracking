@@ -32,10 +32,12 @@ from lts_neuron import B, C, DT, neuron_step
 
 # ── constants ─────────────────────────────────────────────────────────────────
 N_FINGERS      = 5
+N_CHANNELS     = N_FINGERS + 1            # 5 fingers + 1 palm rotation
 WINDOW_MS      = 500.0   # visible history in raster (ms)
 BATCH_MS       = 10.0    # sim chunk per thread tick (ms)
 CURRENT_MAX    = 50.0    # μA at full extension
 FINGER_NAMES   = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
+CHANNEL_NAMES  = FINGER_NAMES + ["Rotation"]
 DECAY          = 0.80    # current multiplier per tracking frame when no hand
 
 # calibration detection
@@ -49,12 +51,13 @@ CAL_EXTEND = 0
 CAL_FIST   = 1
 CAL_DONE   = 2
 
-COLORS = plt.colormaps["plasma"](np.linspace(0.2, 0.9, N_FINGERS))
+COLORS = plt.colormaps["plasma"](np.linspace(0.2, 0.9, N_CHANNELS))
 
 # ── shared state ──────────────────────────────────────────────────────────────
 spike_queue:   queue.Queue[tuple[float, int]]        = queue.Queue()
-currents:      list[float]                           = [0.0] * N_FINGERS
+currents:      list[float]                           = [0.0] * N_CHANNELS
 distances_mm:  list[float]                           = [0.0] * N_FINGERS
+rotation_deg:  list[float]                           = [0.0]   # palm angle vs world up
 stop_event:    threading.Event                       = threading.Event()
 spike_history: collections.deque[tuple[float, int]] = collections.deque(maxlen=20_000)
 sim_time_ref:  list[float]                           = [0.0]
@@ -77,6 +80,13 @@ def dist_to_current(dist_mm: float, finger: int) -> float:
     return float(np.clip(t * CURRENT_MAX, 0.0, CURRENT_MAX))
 
 
+def normal_to_current(normal: ldt.Vector) -> float:
+    """arccos(normal · world_up) in [0°, 180°] → [0, CURRENT_MAX]."""
+    dot = float(np.clip(float(normal.y), -1.0, 1.0))
+    angle_deg = math.degrees(math.acos(-dot))
+    return angle_deg / 180.0 * CURRENT_MAX
+
+
 # ── Leap listener ──────────────────────────────────────────────────────────
 class FingertipListener(leap.Listener):
     def __init__(self) -> None:
@@ -87,9 +97,11 @@ class FingertipListener(leap.Listener):
     def on_tracking_event(self, event: Event) -> None:
         assert isinstance(event, TrackingEvent)
         if not event.hands:
+            for i in range(N_CHANNELS):
+                currents[i] *= DECAY
             for i in range(N_FINGERS):
                 distances_mm[i] *= DECAY
-                currents[i]     *= DECAY
+            rotation_deg[0] *= DECAY
             if cal_phase[0] != CAL_DONE:
                 self._buf.clear()
                 self._stable_since = None
@@ -105,9 +117,13 @@ class FingertipListener(leap.Listener):
         for i in range(N_FINGERS):
             distances_mm[i] = dists[i]
 
+        normal = hand.palm.normal
+        rotation_deg[0] = math.degrees(math.acos(float(np.clip(-float(normal.y), -1.0, 1.0))))
+
         if cal_phase[0] == CAL_DONE:
             for i in range(N_FINGERS):
                 currents[i] = dist_to_current(dists[i], i)
+            currents[N_FINGERS] = normal_to_current(normal)
         else:
             self._update_calibration(dists)
 
@@ -159,15 +175,15 @@ class FingertipListener(leap.Listener):
 
 # ── simulation thread ──────────────────────────────────────────────────────
 def simulation_thread() -> None:
-    v        = [C]     * N_FINGERS
-    u        = [B * C] * N_FINGERS
+    v        = [C]     * N_CHANNELS
+    u        = [B * C] * N_CHANNELS
     sim_time = 0.0
     steps    = int(BATCH_MS / DT)
 
     while not stop_event.is_set():
         t0 = time.perf_counter()
         for _ in range(steps):
-            for i in range(N_FINGERS):
+            for i in range(N_CHANNELS):
                 v[i], u[i], spiked = neuron_step(v[i], u[i], currents[i])
                 if spiked:
                     spike_queue.put((sim_time, i))
@@ -185,36 +201,36 @@ def run_gui() -> None:
     raster_ax = fig.add_axes((0.08, 0.38, 0.88, 0.54))
     raster_ax.set_facecolor("#0a0a1a")
     raster_ax.set_xlim(0, WINDOW_MS)
-    raster_ax.set_ylim(-0.5, N_FINGERS - 0.5)
+    raster_ax.set_ylim(-0.5, N_CHANNELS - 0.5)
     raster_ax.set_xlabel("time  (ms)", color="white", labelpad=6)
     raster_ax.tick_params(colors="white")
-    raster_ax.set_yticks(range(N_FINGERS))
-    raster_ax.set_yticklabels(FINGER_NAMES, color="white")
+    raster_ax.set_yticks(range(N_CHANNELS))
+    raster_ax.set_yticklabels(CHANNEL_NAMES, color="white")
     for spine in raster_ax.spines.values():
         spine.set_edgecolor("#333")
-    for i in range(N_FINGERS):
+    for i in range(N_CHANNELS):
         raster_ax.axhline(i, color="#222", linewidth=0.5, zorder=0)
 
     scatters = [
         raster_ax.scatter([], [], s=60, color=COLORS[i], marker="|", linewidths=2, zorder=3)
-        for i in range(N_FINGERS)
+        for i in range(N_CHANNELS)
     ]
 
     # ── distance bars ─────────────────────────────────────────────────────────
     bar_ax = fig.add_axes((0.08, 0.07, 0.88, 0.24))
     bar_ax.set_facecolor("#0a0a1a")
-    bar_ax.set_xlim(-0.5, N_FINGERS - 0.5)
+    bar_ax.set_xlim(-0.5, N_CHANNELS - 0.5)
     bar_ax.set_ylim(0, 200)
-    bar_ax.set_xticks(range(N_FINGERS))
-    bar_ax.set_xticklabels(FINGER_NAMES, color="white")
+    bar_ax.set_xticks(range(N_CHANNELS))
+    bar_ax.set_xticklabels(CHANNEL_NAMES, color="white", fontsize=8)
     bar_ax.set_ylabel("tip distance  (mm)", color="white", labelpad=6)
     bar_ax.tick_params(colors="white")
     for spine in bar_ax.spines.values():
         spine.set_edgecolor("#333")
 
-    bars = bar_ax.bar(range(N_FINGERS), [0.0] * N_FINGERS,
+    bars = bar_ax.bar(range(N_CHANNELS), [0.0] * N_CHANNELS,
                       color=COLORS, width=0.6, zorder=3)
-    # calibration range markers (updated after calibration)
+    # calibration range markers for finger channels (updated after calibration)
     range_lines = [
         (bar_ax.plot([i - 0.3, i + 0.3], [0, 0],
                      color=COLORS[i], lw=1.2, ls="--", alpha=0.0)[0],
@@ -222,6 +238,10 @@ def run_gui() -> None:
                      color=COLORS[i], lw=1.2, ls="--", alpha=0.0)[0])
         for i in range(N_FINGERS)
     ]
+    # fixed 0°–180° markers for the rotation bar
+    rot_idx = N_FINGERS
+    bar_ax.plot([rot_idx - 0.3, rot_idx + 0.3], [0,   0],   color=COLORS[rot_idx], lw=1.2, ls="--", alpha=0.5)
+    bar_ax.plot([rot_idx - 0.3, rot_idx + 0.3], [180, 180], color=COLORS[rot_idx], lw=1.2, ls="--", alpha=0.5)
 
     # ── calibration overlay ────────────────────────────────────────────────────
     cal_ax = fig.add_axes((0.08, 0.38, 0.88, 0.54))
@@ -280,7 +300,7 @@ def run_gui() -> None:
             fig.suptitle("Leap Motion → LTS Spike Raster",
                          color="white", fontsize=13, y=0.98)
             # update bar chart y-limit and range markers
-            bar_ax.set_ylim(0, max(cal_max) * 1.15)
+            bar_ax.set_ylim(0, max(max(cal_max) * 1.15, 200))
             for i, (lo_line, hi_line) in enumerate(range_lines):
                 for line, y in ((lo_line, cal_min[i]), (hi_line, cal_max[i])):
                     line.set_ydata([y, y])
@@ -297,13 +317,13 @@ def run_gui() -> None:
 
         now   = sim_time_ref[0]
         t_min = now - WINDOW_MS
-        for i in range(N_FINGERS):
+        for i in range(N_CHANNELS):
             pts = [(t - t_min, i) for t, ch in spike_history if ch == i and t >= t_min]
             scatters[i].set_offsets(np.array(pts) if pts else np.empty((0, 2)))
         raster_ax.set_xlim(0, WINDOW_MS)
 
-        for bar, d in zip(bars, distances_mm):
-            bar.set_height(d)
+        for i, bar in enumerate(bars):
+            bar.set_height(distances_mm[i] if i < N_FINGERS else rotation_deg[0])
 
         return [*scatters, *bars]
 
