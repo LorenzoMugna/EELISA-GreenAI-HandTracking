@@ -29,13 +29,12 @@ from leap import datatypes as ldt
 from leap.events import Event, TrackingEvent
 
 from lts_neuron import B, C, DT, neuron_step
+from encoding import (N_FINGERS, N_CHANNELS, features_to_currents,
+                      rotation_deg as compute_rotation_deg)
 
 # ── constants ─────────────────────────────────────────────────────────────────
-N_FINGERS      = 5
-N_CHANNELS     = N_FINGERS + 1            # 5 fingers + 1 palm rotation
 WINDOW_MS      = 500.0   # visible history in raster (ms)
 BATCH_MS       = 10.0    # sim chunk per thread tick (ms)
-CURRENT_MAX    = 50.0    # μA at full extension
 FINGER_NAMES   = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
 CHANNEL_NAMES  = FINGER_NAMES + ["Rotation"]
 DECAY          = 0.80    # current multiplier per tracking frame when no hand
@@ -74,17 +73,6 @@ def vec_dist(a: ldt.Vector, b: ldt.Vector) -> float:
     return math.sqrt(sum((float(x) - float(y)) ** 2 for x, y in zip(a, b)))
 
 
-def dist_to_current(dist_mm: float, finger: int) -> float:
-    lo, hi = cal_min[finger], cal_max[finger]
-    t = (dist_mm - lo) / (hi - lo) if hi > lo else 0.0
-    return float(np.clip(t * CURRENT_MAX, 0.0, CURRENT_MAX))
-
-
-def normal_to_current(normal: ldt.Vector) -> float:
-    """arccos(normal · world_up) in [0°, 180°] → [0, CURRENT_MAX]."""
-    dot = float(np.clip(float(normal.y), -1.0, 1.0))
-    angle_deg = math.degrees(math.acos(-dot))
-    return angle_deg / 180.0 * CURRENT_MAX
 
 
 # ── Leap listener ──────────────────────────────────────────────────────────
@@ -118,12 +106,13 @@ class FingertipListener(leap.Listener):
             distances_mm[i] = dists[i]
 
         normal = hand.palm.normal
-        rotation_deg[0] = math.degrees(math.acos(float(np.clip(-float(normal.y), -1.0, 1.0))))
+        rot = compute_rotation_deg(float(normal.y))
+        rotation_deg[0] = rot
 
         if cal_phase[0] == CAL_DONE:
-            for i in range(N_FINGERS):
-                currents[i] = dist_to_current(dists[i], i)
-            currents[N_FINGERS] = normal_to_current(normal)
+            new_currents = features_to_currents(dists, rot, cal_min, cal_max)
+            for i in range(N_CHANNELS):
+                currents[i] = new_currents[i]
         else:
             self._update_calibration(dists)
 
