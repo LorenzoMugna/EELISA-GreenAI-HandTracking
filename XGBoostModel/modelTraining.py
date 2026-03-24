@@ -25,7 +25,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 # Key parameters for multi-class classification are 'objective' and 'num_class'
 xgb_model = xgb.XGBClassifier(
     objective='multi:softmax', # Use multi:softmax for multiple classes
-    num_class=2,               # The number of classes in your dataset
+    num_class=6,               # The number of classes in your dataset
     max_depth=4,               # Maximum depth of a tree
     learning_rate=0.1,         # Step size shrinkage used to prevent overfitting
     n_estimators=100,          # Number of boosting rounds (trees),
