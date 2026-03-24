@@ -24,15 +24,22 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 # 3. Initialize the XGBoost Classifier
 # Key parameters for multi-class classification are 'objective' and 'num_class'
+
+# parameters for the XGBoost model with no spikes {'learning_rate': 0.18930047114968612, 'max_depth': 5, 'min_child_weight': 3, 'subsample': 0.9473915322486007, 'colsample_bytree': 0.9183943274926889, 'gamma': 0.968651621504979, 'reg_alpha': 0.012833369374564257, 'reg_lambda': 1.2681187312383455e-07, 'n_estimators': 631}
 xgb_model = xgb.XGBClassifier(
     objective='multi:softprob', # Use multi:softmax for multiple classes
     num_class=y.nunique(),               # The number of classes in your dataset
     device='cuda:0',
     tree_method='hist',
-    n_estimators=140,
-    min_child_weight=2, 
-    max_depth=13, 
-    learning_rate=0.1
+    n_estimators=631,
+    min_child_weight=3, 
+    max_depth=5, 
+    learning_rate=0.18930047114968612,
+    subsample=0.9473915322486007,
+    colsample_bytree= 0.9183943274926889,
+    gamma= 0.968651621504979,
+    reg_alpha= 0.012833369374564257,
+    reg_lambda=1.2681187312383455e-07
 )
 
 # # Optional: You can perform hyperparameter tuning using GridSearchCV or RandomizedSearchCV
