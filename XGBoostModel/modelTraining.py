@@ -99,3 +99,6 @@ print(f"\nFinal Accuracy: {accuracy * 100:.2f}%")
 
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
+
+model_filename = 'PredictionModelNoSpike.json'
+xgb_model.save_model(model_filename)
