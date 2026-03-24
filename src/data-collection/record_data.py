@@ -69,15 +69,15 @@ class MyListener(leap.Listener):
                     format(self.label, hand)
                 )
         self.trackings += 1
-        if self.trackings >= 50:
+        if self.trackings >= 300:
             print("Done.")
             exit(0)
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", help="Output file for training data", default="training_data.csv")
+parser.add_argument("--output", help="Output file for training data", default="../../data/training_data.csv")
 parser.add_argument("--label", help="Label to associate with the training data", default="0")
-parser.add_argument("--init", help="Whether to initialize the output file with a header", action="store_true")
+parser.add_argument("--init", help="Whether to initialize the output file with a header [WARNING: This will overwrite existing data]", action="store_true")
 def main():
     
     args = parser.parse_args()

@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, "..")
+
 import udp
 import numpy as np
 import leap
@@ -53,15 +56,6 @@ class MyListener(leap.Listener):
 
 		print(f"Found device {info.serial}")
 
-	def init_file(self):
-		with open(self.output, "w+") as f:
-			if len(f.readlines()) == 0:
-				print("Output file is empty, writing header.")
-				f.write("label;palm_position_x;palm_position_y;palm_position_z;palm_normal_x;palm_normal_y;palm_normal_z;")
-				for i in range(5):
-					f.write(f"digit_{i}_distal_next_joint_x;digit_{i}_distal_next_joint_y;digit_{i}_distal_next_joint_z;")
-				f.write("\n")
-
 	def on_tracking_event(self, event):
 		if event.tracking_frame_id % 20 != 0:
 			return 
@@ -73,18 +67,11 @@ class MyListener(leap.Listener):
 
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("--output", help="Output file for training data", default="training_data.csv")
-# parser.add_argument("--label", help="Label to associate with the training data", default="0")
-# parser.add_argument("--init", help="Whether to initialize the output file with a header", action="store_true")
+parser.add_argument("--ip", default=None)
+parser.add_argument("--port", default=None)
 def main():
-	
-	# args = parser.parse_args()
-	# output_file = args.output
-	# label_to_use = args.label
-
-
-	# if args.init:
-	# 	my_listener.init_file()
+	args = parser.parse_args()
+	udp.configure(ip=args.ip, port=args.port)
 
 	my_listener = MyListener()
 	connection = leap.Connection()
