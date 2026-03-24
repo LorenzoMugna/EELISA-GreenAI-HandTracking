@@ -1,6 +1,7 @@
 import xgboost as xgb
 import pandas as pd
 import cupy as cp
+import matplotlib.pyplot as plt
 from sklearn.model_selection import RandomizedSearchCV, train_test_split, StratifiedKFold, cross_val_score
 from sklearn.metrics import accuracy_score, classification_report
 
@@ -99,6 +100,23 @@ print(f"\nFinal Accuracy: {accuracy * 100:.2f}%")
 
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
+
+# 8. Feature importance (gain) con mapping ai nomi reali delle feature
+booster = xgb_model.get_booster()
+importance_dict = booster.get_score(importance_type='gain')
+
+importance_series = pd.Series({
+    X.columns[int(feature_idx[1:])]: importance_value
+    for feature_idx, importance_value in importance_dict.items()
+}).sort_values(ascending=True)
+
+plt.figure(figsize=(8, 5))
+importance_series.plot(kind='barh')
+plt.title('XGBoost Feature Importance (gain)')
+plt.xlabel('Importance')
+plt.ylabel('Feature')
+plt.tight_layout()
+plt.show()
 
 model_filename = 'PredictionModelNoSpike.json'
 xgb_model.save_model(model_filename)
