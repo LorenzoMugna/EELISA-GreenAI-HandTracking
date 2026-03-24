@@ -152,6 +152,7 @@ def run_local_test():
     print(f"IAT variances (ms^2): {data_store.get_all_inter_arrival_variances()}")
     print(f"Values: {data_store.get_all_values()}")
     print(f"Coordinates: {data_store.get_all_coordinates()}")
+    print(f"Bytes received: {data_store.get_bytes_received_formatted()} ({data_store.get_bytes_received()} bytes)")
 
     # Show all features for inference
     print("\n=== All Features (for inference) ===")

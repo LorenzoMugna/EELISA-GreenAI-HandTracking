@@ -81,6 +81,7 @@ class UDPReceiver:
         while self._running:
             try:
                 data, addr = self._socket.recvfrom(self._config.buffer_size)
+                self._data_store.add_bytes(len(data))
                 self._process_message(data)
             except socket.timeout:
                 continue

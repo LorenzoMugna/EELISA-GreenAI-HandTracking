@@ -81,6 +81,10 @@ class DataStore:
         self._model: Any = None
         self._model_lock = threading.Lock()
 
+        # Bytes tracking
+        self._bytes_received: int = 0
+        self._bytes_lock = threading.Lock()
+
         self._cleanup_thread: Optional[SpikeCleanupThread] = None
         if auto_cleanup:
             self.start_cleanup()
@@ -332,7 +336,50 @@ class DataStore:
         """
         with self._model_lock:
             return self._model
-        
+
+    # =========================================================================
+    # Bytes tracking methods
+    # =========================================================================
+
+    def add_bytes(self, num_bytes: int) -> None:
+        """Add to the count of bytes received.
+
+        Args:
+            num_bytes: Number of bytes to add.
+        """
+        with self._bytes_lock:
+            self._bytes_received += num_bytes
+
+    def get_bytes_received(self) -> int:
+        """Get the total number of bytes received.
+
+        Returns:
+            Total bytes received.
+        """
+        with self._bytes_lock:
+            return self._bytes_received
+
+    def get_bytes_received_formatted(self) -> str:
+        """Get the total bytes received in a human-readable format.
+
+        Returns:
+            Formatted string (e.g., "1.23 KB", "4.56 MB").
+        """
+        bytes_val = self.get_bytes_received()
+        if bytes_val < 1024:
+            return f"{bytes_val} B"
+        elif bytes_val < 1024 * 1024:
+            return f"{bytes_val / 1024:.2f} KB"
+        elif bytes_val < 1024 * 1024 * 1024:
+            return f"{bytes_val / (1024 * 1024):.2f} MB"
+        else:
+            return f"{bytes_val / (1024 * 1024 * 1024):.2f} GB"
+
+    def reset_bytes_counter(self) -> None:
+        """Reset the bytes received counter to zero."""
+        with self._bytes_lock:
+            self._bytes_received = 0
+
     def get_digit_distances(self) -> List[float]:
         # digit_0_distance;digit_1_distance;digit_2_distance;digit_3_distance;digit_4_distance
         return [self.get_value(f"digit_{i}_distance") for i in range(5)]

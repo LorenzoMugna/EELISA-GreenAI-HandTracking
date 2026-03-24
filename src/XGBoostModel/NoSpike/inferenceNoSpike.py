@@ -45,6 +45,7 @@ def inference():
             # model = data_store.get_model()
             # print(f"Model: {type(model).__name__ if model else 'None'}")
             # print(f"\nAll features: {data_store.get_all_features()}")
+            # print(f"Bytes received: {data_store.get_bytes_received_formatted()} ({data_store.get_bytes_received()} bytes)")
 
             # INFERENCE
             # 3. Make predictions (Assuming X_new_gpu is a CuPy array of new data)
@@ -59,6 +60,7 @@ def inference():
     except KeyboardInterrupt:
         print("\nStopping receiver...")
         receiver.stop()
+        print(f"Total data received: {data_store.get_bytes_received_formatted()} ({data_store.get_bytes_received()} bytes)")
         print("Receiver stopped.")
 
 
