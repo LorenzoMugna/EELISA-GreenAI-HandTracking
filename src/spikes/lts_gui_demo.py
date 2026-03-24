@@ -3,8 +3,8 @@ Interactive GUI for the LTS neuron simulation.
 
 Scrolling spike raster + per-channel current sliders.
 Two encoding modes (radio buttons):
-  Absolute  — current = slider value directly
-  Velocity  — current ∝ |Δslider| per animation frame
+  Tonic  — current = slider value directly
+  Phasic — current ∝ |Δslider| per animation frame
 
 Run with:  uv run src/spikes/lts_gui_demo.py
 """
@@ -20,7 +20,7 @@ import numpy as np
 from matplotlib.widgets import RadioButtons, Slider
 
 from lts_neuron import B, C, DT, neuron_step
-from encoding import velocity_to_current
+from encoding import phasic_to_current
 
 N_CHANNELS      = 5
 WINDOW_MS       = 500.0
@@ -28,10 +28,10 @@ CURRENT_MIN     = 0.0
 CURRENT_MAX     = 50.0
 DEFAULT_CURRENT = 10.0
 BATCH_MS        = 10.0
-VELOCITY_SCALE  = CURRENT_MAX / 2   # slider delta that maps to full current
+PHASIC_SCALE  = CURRENT_MAX / 2   # slider delta that maps to full current
 
-MODE_ABSOLUTE = "Absolute"
-MODE_VELOCITY = "Velocity"
+MODE_TONIC = "Tonic"
+MODE_PHASIC = "Phasic"
 
 COLORS = plt.colormaps["plasma"](np.linspace(0.2, 0.9, N_CHANNELS))
 
@@ -42,7 +42,7 @@ slider_vals:   list[float]                           = [DEFAULT_CURRENT] * N_CHA
 stop_event:    threading.Event                       = threading.Event()
 spike_history: collections.deque[tuple[float, int]] = collections.deque(maxlen=20_000)
 sim_time_ref:  list[float]                           = [0.0]
-enc_mode:      list[str]                             = [MODE_ABSOLUTE]
+enc_mode:      list[str]                             = [MODE_TONIC]
 
 
 # ── simulation thread ──────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ def main() -> None:
 
         def _cb(val: float, idx: int = i) -> None:
             slider_vals[idx] = val
-            if enc_mode[0] == MODE_ABSOLUTE:
+            if enc_mode[0] == MODE_TONIC:
                 currents[idx] = val
 
         s.on_changed(_cb)
@@ -117,7 +117,7 @@ def main() -> None:
     radio_ax.set_title("Encoding", color="white", fontsize=9, pad=4)
     radio = RadioButtons(
         radio_ax,
-        labels=[MODE_ABSOLUTE, MODE_VELOCITY],
+        labels=[MODE_TONIC, MODE_PHASIC],
         active=0,
         label_props={"color": ["white", "white"], "fontsize": [10, 10]},
         radio_props={"facecolor": ["#7c4dff", "#ff4d7c"]},
@@ -127,7 +127,7 @@ def main() -> None:
         if label is None:
             return
         enc_mode[0] = label
-        if label == MODE_ABSOLUTE:
+        if label == MODE_TONIC:
             for i in range(N_CHANNELS):
                 currents[i] = slider_vals[i]
 
@@ -137,11 +137,11 @@ def main() -> None:
     prev_vals: list[float] = slider_vals[:]
 
     def update(_frame: object):  # type: ignore[return]
-        # velocity mode: drive currents from |delta| since last frame
-        if enc_mode[0] == MODE_VELOCITY:
+        # phasic mode: drive currents from |delta| since last frame
+        if enc_mode[0] == MODE_PHASIC:
             for i in range(N_CHANNELS):
                 delta = slider_vals[i] - prev_vals[i]
-                currents[i] = velocity_to_current(delta, VELOCITY_SCALE)
+                currents[i] = phasic_to_current(delta, PHASIC_SCALE)
                 prev_vals[i] = slider_vals[i]
 
         while not spike_queue.empty():

@@ -2,10 +2,10 @@
 Leap Motion → LTS neuron spike raster.
 
 Two encoding modes (toggle with the radio buttons):
-  Absolute  — current ∝ fingertip distance / palm rotation angle
-  Velocity  — current ∝ |Δdistance| or |Δangle| per frame (change-selective)
+  Tonic  — current ∝ fingertip distance / palm rotation angle
+  Phasic — current ∝ |Δdistance| or |Δangle| per frame (change-selective)
 
-A two-step GUI calibration phase (absolute mode only) auto-detects the
+A two-step GUI calibration phase (tonic mode only) auto-detects the
 extended and fist poses before the raster starts.
 
 Run with:
@@ -30,8 +30,8 @@ from matplotlib.widgets import RadioButtons
 
 from lts_neuron import B, C, DT, neuron_step
 from encoding import (N_FINGERS, N_CHANNELS,
-                      features_to_currents,
-                      velocity_features_to_currents,
+                      tonic_features_to_currents,
+                      phasic_features_to_currents,
                       rotation_deg as compute_rotation_deg)
 
 # ── constants ─────────────────────────────────────────────────────────────────
@@ -50,8 +50,8 @@ CAL_EXTEND = 0
 CAL_FIST   = 1
 CAL_DONE   = 2
 
-MODE_ABSOLUTE = "Absolute"
-MODE_VELOCITY = "Velocity"
+MODE_TONIC = "Tonic"
+MODE_PHASIC = "Phasic"
 
 COLORS = plt.colormaps["plasma"](np.linspace(0.2, 0.9, N_CHANNELS))
 
@@ -66,7 +66,7 @@ bar_values:    list[float]                           = [0.0] * N_CHANNELS
 stop_event:    threading.Event                       = threading.Event()
 spike_history: collections.deque[tuple[float, int]] = collections.deque(maxlen=20_000)
 sim_time_ref:  list[float]                           = [0.0]
-enc_mode:      list[str]                             = [MODE_ABSOLUTE]
+enc_mode:      list[str]                             = [MODE_TONIC]
 
 cal_min:      list[float] = [30.0]  * N_FINGERS
 cal_max:      list[float] = [160.0] * N_FINGERS
@@ -120,13 +120,13 @@ class FingertipListener(leap.Listener):
             return
 
         mode = enc_mode[0]
-        if mode == MODE_ABSOLUTE:
-            new_currents = features_to_currents(dists, rot, cal_min, cal_max)
+        if mode == MODE_TONIC:
+            new_currents = tonic_features_to_currents(dists, rot, cal_min, cal_max)
             for i in range(N_FINGERS):
                 bar_values[i] = dists[i]
             bar_values[N_FINGERS] = rot
         else:
-            # velocity encoding — need previous frame
+            # phasic encoding — need previous frame
             if self._prev_dists is None or self._prev_rot is None:
                 self._prev_dists = dists[:]
                 self._prev_rot   = rot
@@ -134,7 +134,7 @@ class FingertipListener(leap.Listener):
             else:
                 deltas   = [dists[i] - self._prev_dists[i] for i in range(N_FINGERS)]
                 delta_rot = rot - self._prev_rot
-                new_currents = velocity_features_to_currents(deltas, delta_rot)
+                new_currents = phasic_features_to_currents(deltas, delta_rot)
                 for i in range(N_FINGERS):
                     bar_values[i] = abs(deltas[i])
                 bar_values[N_FINGERS] = abs(delta_rot)
@@ -261,7 +261,7 @@ def run_gui() -> None:
     radio_ax.set_title("Encoding", color="white", fontsize=9, pad=4)
     radio = RadioButtons(
         radio_ax,
-        labels=[MODE_ABSOLUTE, MODE_VELOCITY],
+        labels=[MODE_TONIC, MODE_PHASIC],
         active=0,
         label_props={"color": ["white", "white"], "fontsize": [10, 10]},
         radio_props={"facecolor": ["#7c4dff", "#ff4d7c"]},
@@ -273,7 +273,7 @@ def run_gui() -> None:
         if label is None:
             return
         enc_mode[0] = label
-        if label == MODE_ABSOLUTE:
+        if label == MODE_TONIC:
             bar_ylabel.set_text("input value")
             bar_ax.set_ylim(0, max(max(cal_max) * 1.15, 200))
         else:

@@ -2,8 +2,8 @@
 Offline spike encoder for recorded hand-tracking data.
 
 For each CSV in ./data, outputs two spike files:
-  <name>_spikes_absolute.csv  — current ∝ normalised feature value
-  <name>_spikes_velocity.csv  — current ∝ |Δfeature| per frame
+  <name>_spikes_tonic.csv  — current ∝ normalised feature value
+  <name>_spikes_phasic.csv  — current ∝ |Δfeature| per frame
 
 Input columns used:
   digit_0_distance .. digit_4_distance   (mm)
@@ -22,8 +22,8 @@ import sys
 from pathlib import Path
 
 from encoding import (N_CHANNELS, N_FINGERS,
-                      features_to_currents,
-                      velocity_features_to_currents,
+                      tonic_features_to_currents,
+                      phasic_features_to_currents,
                       rotation_deg as compute_rotation_deg)
 from lts_neuron import B, C, DT, neuron_step
 
@@ -95,31 +95,31 @@ def process_file(src: Path) -> None:
     distances_all = [[float(r[c]) for c in DIST_COLS] for r in rows]
     rotations_all = [compute_rotation_deg(float(r[NORMAL_Y_COL])) for r in rows]
 
-    # per-file calibration for absolute encoding
+    # per-file calibration for tonic encoding
     cal_min = [min(distances_all[f][i] for f in range(len(rows)))
                for i in range(N_FINGERS)]
     cal_max = [max(distances_all[f][i] for f in range(len(rows)))
                for i in range(N_FINGERS)]
 
-    # ── absolute currents ─────────────────────────────────────────────────────
-    abs_currents = [
-        features_to_currents(dists, rot, cal_min, cal_max)
+    # ── tonic currents ─────────────────────────────────────────────────────
+    tonic_currents = [
+        tonic_features_to_currents(dists, rot, cal_min, cal_max)
         for dists, rot in zip(distances_all, rotations_all)
     ]
 
-    # ── velocity currents ─────────────────────────────────────────────────────
-    vel_currents: list[list[float]] = []
+    # ── phasic currents ─────────────────────────────────────────────────────
+    phasic_currents: list[list[float]] = []
     for idx, (dists, rot) in enumerate(zip(distances_all, rotations_all)):
         if idx == 0:
-            vel_currents.append([0.0] * N_CHANNELS)
+            phasic_currents.append([0.0] * N_CHANNELS)
         else:
             deltas    = [dists[i] - distances_all[idx - 1][i] for i in range(N_FINGERS)]
             delta_rot = rot - rotations_all[idx - 1]
-            vel_currents.append(velocity_features_to_currents(deltas, delta_rot))
+            phasic_currents.append(phasic_features_to_currents(deltas, delta_rot))
 
     # ── simulate & write ──────────────────────────────────────────────────────
-    write_spikes(src, rows, simulate(abs_currents),  "_spikes_absolute")
-    write_spikes(src, rows, simulate(vel_currents),  "_spikes_velocity")
+    write_spikes(src, rows, simulate(tonic_currents),  "_spikes_tonic")
+    write_spikes(src, rows, simulate(phasic_currents),  "_spikes_phasic")
 
 
 def main() -> None:

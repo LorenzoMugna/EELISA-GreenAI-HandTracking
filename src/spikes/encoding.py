@@ -32,34 +32,40 @@ def rotation_to_current(rot_deg: float) -> float:
     return rot_deg / 180.0 * CURRENT_MAX
 
 
-def velocity_to_current(delta: float, scale: float) -> float:
-    """Map |Δfeature| per frame to a driving current.
+def phasic_to_current(delta: float, scale: float) -> float:
+    """Phasic encoding: map |Δfeature| per frame to a driving current.
 
     scale -- expected max delta that maps to CURRENT_MAX.
     """
     return min(CURRENT_MAX, abs(delta) / scale * CURRENT_MAX)
 
 
-def velocity_features_to_currents(
+def phasic_features_to_currents(
     deltas: list[float],
     delta_rot: float,
     dist_scale: float = 20.0,
     rot_scale: float = 30.0,
 ) -> list[float]:
-    """Convert per-frame feature deltas to a current vector (length N_CHANNELS)."""
-    currents = [velocity_to_current(deltas[i], dist_scale) for i in range(N_FINGERS)]
-    currents.append(velocity_to_current(delta_rot, rot_scale))
+    """Phasic encoding: convert per-frame feature deltas to currents (length N_CHANNELS)."""
+    currents = [phasic_to_current(deltas[i], dist_scale) for i in range(N_FINGERS)]
+    currents.append(phasic_to_current(delta_rot, rot_scale))
     return currents
 
 
-def features_to_currents(
+def tonic_features_to_currents(
     distances: list[float],
     rot_deg: float,
     cal_min: list[float],
     cal_max: list[float],
 ) -> list[float]:
-    """Convert one frame of hand features to a current vector (length N_CHANNELS)."""
+    """Tonic encoding: convert one frame of hand features to currents (length N_CHANNELS)."""
     currents = [dist_to_current(distances[i], cal_min[i], cal_max[i])
                 for i in range(N_FINGERS)]
     currents.append(rotation_to_current(rot_deg))
     return currents
+
+
+# aliases kept for any external callers
+features_to_currents          = tonic_features_to_currents
+velocity_features_to_currents = phasic_features_to_currents
+velocity_to_current           = phasic_to_current
