@@ -6,10 +6,10 @@ import joblib
 loaded_model = xgb.Booster()
 
 # 2. Load the saved weights and configuration
-loaded_model.load_model("PredictionModelNoSpike.json")
+loaded_model.load_model("PredictionModelWithSpike.json")
 
 # 2b. Load the scaler used during training
-scaler = joblib.load("scalerNoSpike.pkl")
+scaler = joblib.load("scalerWithSpike.pkl")
 
 # 3. Make predictions (Assuming X_new_gpu is a CuPy array of new data)
 # Note: Native XGBoost expects a DMatrix for prediction
