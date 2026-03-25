@@ -5,7 +5,13 @@ import pickle
 import base64
 import socket
 import threading
+import sys
 from typing import Any, Callable, Optional
+from pathlib import Path
+
+# Add common path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "common"))
+from model_utils import MessageTypes
 
 from .config import get_config
 from .datastore import DataStore
@@ -81,19 +87,19 @@ class UDPReceiver:
         while self._running:
             try:
                 data, addr = self._socket.recvfrom(self._config.buffer_size)
-                self._data_store.add_bytes(len(data))
-                self._process_message(data)
+                self._process_message(data, len(data))
             except socket.timeout:
                 continue
             except Exception as e:
                 if self._running:
                     print(f"UDP Receiver error: {e}")
 
-    def _process_message(self, data: bytes) -> None:
+    def _process_message(self, data: bytes, data_length: int = None) -> None:
         """Process a received UDP message.
 
         Args:
             data: Raw bytes received.
+            data_length: Length of data for byte tracking.
         """
         try:
             message = json.loads(data.decode("utf-8"))
@@ -101,19 +107,24 @@ class UDPReceiver:
             return
 
         msg_type = message.get("type")
+        is_spike = (msg_type == MessageTypes.SPIKE)
 
-        if msg_type == "spike":
+        # Add bytes with proper classification in one operation
+        if data_length is not None:
+            self._data_store.add_bytes(data_length, is_spike=is_spike)
+
+        if msg_type == MessageTypes.SPIKE:
             spike_id = message.get("id")
             if isinstance(spike_id, int):
                 self._data_store.add_spike(spike_id)
 
-        elif msg_type == "value":
+        elif msg_type == MessageTypes.VALUE:
             value_id = message.get("id")
             value = message.get("value")
             if value_id is not None:
                 self._data_store.set_value(value_id, value)
 
-        elif msg_type == "coordinate":
+        elif msg_type == MessageTypes.COORDINATE:
             name = message.get("name")
             x = message.get("x")
             y = message.get("y")
@@ -121,7 +132,7 @@ class UDPReceiver:
             if name is not None and all(v is not None for v in (x, y, z)):
                 self._data_store.set_coordinate(name, x, y, z)
 
-        elif msg_type == "model":
+        elif msg_type == MessageTypes.MODEL:
             model_b64 = message.get("data")
             if model_b64:
                 try:

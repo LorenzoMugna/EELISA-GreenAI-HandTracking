@@ -81,8 +81,9 @@ class DataStore:
         self._model: Any = None
         self._model_lock = threading.Lock()
 
-        # Bytes tracking
-        self._bytes_received: int = 0
+        # Bytes tracking - separate counters for spikes vs no-spikes
+        self._bytes_spikes: int = 0
+        self._bytes_no_spikes: int = 0
         self._bytes_lock = threading.Lock()
 
         self._cleanup_thread: Optional[SpikeCleanupThread] = None
@@ -242,6 +243,21 @@ class DataStore:
         """
         return [self.get_inter_arrival_variance(i) for i in range(self._num_spike_queues)]
 
+    #labels: ['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch5_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms', 'ch5_var_isi_ms']
+    def get_spikes_features(self):
+        """Get spike features for all queues as a list.
+
+        Returns:
+            List of features in the order: [ch0_rate_hz, ch1_rate_hz, ..., ch5_rate_hz, ch0_var_isi_ms, ..., ch5_var_isi_ms]
+        """
+        features = []
+        for i in range(self._num_spike_queues):
+            features.append(self.get_firing_rate(i))
+        for i in range(self._num_spike_queues):
+            var = self.get_inter_arrival_variance(i)
+            features.append(var if var is not None else 0.0)
+        return features
+
     # =========================================================================
     # Value methods
     # =========================================================================
@@ -341,23 +357,46 @@ class DataStore:
     # Bytes tracking methods
     # =========================================================================
 
-    def add_bytes(self, num_bytes: int) -> None:
+    def add_bytes(self, num_bytes: int, is_spike: bool = None) -> None:
         """Add to the count of bytes received.
 
         Args:
             num_bytes: Number of bytes to add.
+            is_spike: True for spike data, False for no-spike data, None for unknown.
         """
         with self._bytes_lock:
-            self._bytes_received += num_bytes
+            if is_spike is True:
+                self._bytes_spikes += num_bytes
+            elif is_spike is False:
+                self._bytes_no_spikes += num_bytes
+            # If is_spike is None, we ignore the bytes (shouldn't happen with new design)
 
     def get_bytes_received(self) -> int:
-        """Get the total number of bytes received.
+        """Get the total number of bytes received (computed from spike + no-spike).
 
         Returns:
             Total bytes received.
         """
         with self._bytes_lock:
-            return self._bytes_received
+            return self._bytes_spikes + self._bytes_no_spikes
+
+    def get_bytes_spikes(self) -> int:
+        """Get the number of bytes received from spike messages.
+
+        Returns:
+            Spike bytes received.
+        """
+        with self._bytes_lock:
+            return self._bytes_spikes
+
+    def get_bytes_no_spikes(self) -> int:
+        """Get the number of bytes received from non-spike messages.
+
+        Returns:
+            Non-spike bytes received.
+        """
+        with self._bytes_lock:
+            return self._bytes_no_spikes
 
     def get_bytes_received_formatted(self) -> str:
         """Get the total bytes received in a human-readable format.
@@ -375,14 +414,45 @@ class DataStore:
         else:
             return f"{bytes_val / (1024 * 1024 * 1024):.2f} GB"
 
+    def get_bytes_spikes_formatted(self) -> str:
+        """Get the spike bytes received in a human-readable format."""
+        bytes_val = self.get_bytes_spikes()
+        if bytes_val < 1024:
+            return f"{bytes_val} B"
+        elif bytes_val < 1024 * 1024:
+            return f"{bytes_val / 1024:.2f} KB"
+        elif bytes_val < 1024 * 1024 * 1024:
+            return f"{bytes_val / (1024 * 1024):.2f} MB"
+        else:
+            return f"{bytes_val / (1024 * 1024 * 1024):.2f} GB"
+
+    def get_bytes_no_spikes_formatted(self) -> str:
+        """Get the non-spike bytes received in a human-readable format."""
+        bytes_val = self.get_bytes_no_spikes()
+        if bytes_val < 1024:
+            return f"{bytes_val} B"
+        elif bytes_val < 1024 * 1024:
+            return f"{bytes_val / 1024:.2f} KB"
+        elif bytes_val < 1024 * 1024 * 1024:
+            return f"{bytes_val / (1024 * 1024):.2f} MB"
+        else:
+            return f"{bytes_val / (1024 * 1024 * 1024):.2f} GB"
+
     def reset_bytes_counter(self) -> None:
-        """Reset the bytes received counter to zero."""
+        """Reset all bytes counters to zero."""
         with self._bytes_lock:
-            self._bytes_received = 0
+            self._bytes_spikes = 0
+            self._bytes_no_spikes = 0
 
     def get_digit_distances(self) -> List[float]:
-        # digit_0_distance;digit_1_distance;digit_2_distance;digit_3_distance;digit_4_distance
-        return [self.get_value(f"digit_{i}_distance") for i in range(5)]
+        """Get palm_normal_y and the 5 digit distances for inference.
+
+        Returns:
+            List of 6 values: [palm_normal_y, digit_0_distance, digit_1_distance, digit_2_distance, digit_3_distance, digit_4_distance]
+        """
+        palm_normal_y = self.get_value("palm_normal_y", 0.0)
+        digit_distances = [self.get_value(f"digit_{i}_distance", 0.0) for i in range(5)]
+        return [palm_normal_y] + digit_distances
 
     # =========================================================================
     # Aggregate methods

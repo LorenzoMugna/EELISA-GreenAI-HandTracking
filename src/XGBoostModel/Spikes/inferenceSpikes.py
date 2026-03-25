@@ -1,6 +1,7 @@
 import joblib
 import xgboost as xgb
 import numpy as np
+import joblib
 
 import sys
 import time
@@ -31,10 +32,10 @@ def inference():
     loaded_model = xgb.Booster()
 
     # 2. Load the saved weights and configuration
-    loaded_model.load_model("PredictionModelNoSpike.json")
+    loaded_model.load_model("PredictionModelWithSpike_NoRot.json")
 
     # 2b. Load the scaler used during training
-    scaler = joblib.load("scalerNoSpike.pkl")   
+    scaler = joblib.load("scalerWithSpike_NoRot.pkl")   
 
     try:
         while True:
@@ -54,26 +55,22 @@ def inference():
             # INFERENCE
             # 3. Make predictions (Assuming X_new_gpu is a CuPy array of new data)
             # Note: Native XGBoost expects a DMatrix for prediction
-            Data = data_store.get_digit_distances()
+            #labels: ['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch5_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms', 'ch5_var_isi_ms']
+            Data = data_store.get_spikes_features()
             Data = np.array(Data, dtype=np.float32).reshape(1, -1)
             Data = scaler.transform(Data)
             dnew = xgb.DMatrix(Data)
             prediction = loaded_model.predict(dnew)
             index_max_pred = np.argmax(prediction)
-            confidence = np.max(prediction)
             print(f"Input data: {Data.flatten().tolist()}")
-            print(f"Predicted class: {index_max_pred}, Confidence: {confidence:.3f}")
-            print(f"Probabilities: {prediction}")
-            print(f"Bytes - Total: {data_store.get_bytes_received()}, Spikes: {data_store.get_bytes_spikes()}, No-spikes: {data_store.get_bytes_no_spikes()}")
+            print(f"Predicted class: {index_max_pred}, Probabilities: {prediction}")
+            print(prediction)
+
+            
     except KeyboardInterrupt:
         print("\nStopping receiver...")
         receiver.stop()
         print(f"Total data received: {data_store.get_bytes_received_formatted()} ({data_store.get_bytes_received()} bytes)")
-        print(f"Spike data received: {data_store.get_bytes_spikes_formatted()} ({data_store.get_bytes_spikes()} bytes)")
-        print(f"No-spike data received: {data_store.get_bytes_no_spikes_formatted()} ({data_store.get_bytes_no_spikes()} bytes)")
-        if data_store.get_bytes_received() > 0:
-            spike_ratio = (data_store.get_bytes_spikes() / data_store.get_bytes_received()) * 100
-            print(f"Spike data ratio: {spike_ratio:.1f}%")
         print("Receiver stopped.")
 
 

@@ -1,3 +1,7 @@
-XGBoost
+xgboost
 scikit-learn
 cupy-cuda12x
+numpy
+pandas
+matplotlib
+joblib
