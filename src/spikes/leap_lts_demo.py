@@ -127,12 +127,16 @@ def run_gui(theme: str = "dark") -> None:
         if label is None:
             return
         enc_mode[0] = label
-        if label == MODE_TONIC:
+        show_cal_lines = label == MODE_TONIC
+        if show_cal_lines:
             bar_ylabel.set_text("input value")
             bar_ax.set_ylim(0, max(max(cal_max) * 1.15, 200))
         else:
             bar_ylabel.set_text("|delta| per frame")
             bar_ax.set_ylim(0, 50)
+        for lo_line, hi_line in range_lines:
+            lo_line.set_visible(show_cal_lines)
+            hi_line.set_visible(show_cal_lines)
         fig.canvas.draw_idle()
 
     radio.on_clicked(on_mode_change)
