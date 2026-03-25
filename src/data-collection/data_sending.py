@@ -28,7 +28,7 @@ def format_and_send(hand):
 	digits = [float(x) for x in digits]
 	digits_np = np.array(digits).reshape(5, 3)
 	diffs = digits_np - palm_pos
-	distances = [np.linalg.norm(diff) for diff in diffs]
+	distances = [float(np.linalg.norm(diff)) for diff in diffs]
 	
 	udp.send_coordinate("palm_normal", *palm_normal)
 
@@ -36,7 +36,7 @@ def format_and_send(hand):
 		udp.send_coordinate(f"digit_{i}_diff", *diff)
 
 	for i, dist in enumerate(distances):
-		udp.send_value(f"digit_{i}_dist", dist)
+		udp.send_value(f"digit_{i}_distance", dist)
 
 
 
