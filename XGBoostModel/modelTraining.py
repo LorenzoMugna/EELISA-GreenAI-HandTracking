@@ -10,8 +10,8 @@ from sklearn.metrics import accuracy_score, classification_report
 
 # 1. TODO import your dataset and preprocess it to get features (X) and labels (y)
 # For example, if you have a CSV file, you can use pandas to load it:
-df = pd.read_csv('data/parsed_data.csv', sep=';')
-X = df[['palm_normal_y', 'digit_0_distance', 'digit_1_distance', 'digit_2_distance', 'digit_3_distance', 'digit_4_distance']]  
+df = pd.read_csv('./data/parsed_spikes_data_total.csv')
+X = df[['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch5_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms', 'ch5_var_isi_ms']]
 y = df['label']
 print(f"Test solo distanze scalari")
 
@@ -21,9 +21,9 @@ X_normalized = scaler.fit_transform(X)
 X = pd.DataFrame(X_normalized, columns=X.columns)
 
 # Export the scaler for future use
-joblib.dump(scaler, 'scalerNoSpike.pkl')
+joblib.dump(scaler, 'scalerWithSpike.pkl')
 print(f"Test solo distanze scalari - Dataset normalized")
-print(f"Scaler exported to 'scalerNoSpike.pkl'")
+print(f"Scaler exported to 'scalerWithSpike.pkl'")
 
 # 2. Split the data into training and testing sets (80% train, 20% test)
 X_train, X_test, y_train, y_test = train_test_split(
@@ -58,20 +58,21 @@ print(f"Added {n_synthetic} synthetic samples with Gaussian noise on X only (std
 # Key parameters for multi-class classification are 'objective' and 'num_class'
 
 # parameters for the XGBoost model with no spikes {'learning_rate': 0.19969893459885074, 'max_depth': 11, 'min_child_weight': 3, 'subsample': 0.9247919725331971, 'colsample_bytree': 0.9880565237371193, 'gamma': 0.7433223803722873, 'reg_alpha': 0.00522616507787177, 'reg_lambda': 5.0397762306422554e-05, 'n_estimators': 677}
+# parameters for the XGBoost model with spikes {'learning_rate': 0.18572129841488952, 'max_depth': 9, 'min_child_weight': 1, 'subsample': 0.8665837305231249, 'colsample_bytree': 0.8661009157248534, 'gamma': 0.002145047496642058, 'reg_alpha': 2.5597617059669192e-05, 'reg_lambda': 4.100617847237646e-08, 'n_estimators': 692}
 xgb_model = xgb.XGBClassifier(
     objective='multi:softprob', # Use multi:softmax for multiple classes
     num_class=y.nunique(),               # The number of classes in your dataset
     device='cuda:0',
     tree_method='hist',
-    n_estimators=677,
-    min_child_weight=3, 
-    max_depth=11, 
-    learning_rate=0.19969893459885074,
-    subsample=0.9247919725331971,
-    colsample_bytree= 0.9880565237371193,
-    gamma= 0.7433223803722873,
-    reg_alpha= 0.00522616507787177,
-    reg_lambda=5.0397762306422554e-05
+    n_estimators=692,
+    min_child_weight=1, 
+    max_depth=9, 
+    learning_rate=0.18572129841488952,
+    subsample=0.8665837305231249,
+    colsample_bytree= 0.8661009157248534,
+    gamma= 0.002145047496642058,
+    reg_alpha= 2.5597617059669192e-05,
+    reg_lambda=4.100617847237646e-08
 )
 
 # # Optional: You can perform hyperparameter tuning using GridSearchCV or RandomizedSearchCV
@@ -157,5 +158,5 @@ plt.ylabel('Feature')
 plt.tight_layout()
 plt.show()
 
-model_filename = 'PredictionModelNoSpike.json'
+model_filename = 'PredictionModelWithSpike.json'
 xgb_model.save_model(model_filename)
