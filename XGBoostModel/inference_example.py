@@ -14,8 +14,9 @@ scaler = joblib.load("scalerNoSpike.pkl")
 # 3. Make predictions (Assuming X_new_gpu is a CuPy array of new data)
 # Note: Native XGBoost expects a DMatrix for prediction
 
-#labels: ['palm_normal_y', 'digit_0_distance', 'digit_1_distance', 'digit_2_distance', 'digit_3_distance', 'digit_4_distance']
-Data = [0,0,0,0,0,0]  # Replace with your actual data for prediction (must be in the same order as training features)
+# the channels are from 0 to 4 the fingers and 5 is the palm y normal, the features are the same as in the training phase, but you can replace them with your actual data for prediction
+#labels: ['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch5_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms', 'ch5_var_isi_ms']
+Data = [0,0,0,0,0,0,0,0,0,0,0,0]  # Replace with your actual data for prediction (must be in the same order as training features)
 Data = np.array(Data, dtype=np.float32).reshape(1, -1)
 Data = scaler.transform(Data)
 dnew = xgb.DMatrix(Data)
