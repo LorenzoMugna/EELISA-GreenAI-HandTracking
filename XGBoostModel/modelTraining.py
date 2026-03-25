@@ -1,3 +1,5 @@
+import joblib
+from sklearn.discriminant_analysis import StandardScaler
 import xgboost as xgb
 import pandas as pd
 import cupy as cp
@@ -8,9 +10,19 @@ from sklearn.metrics import accuracy_score, classification_report
 # 1. TODO import your dataset and preprocess it to get features (X) and labels (y)
 # For example, if you have a CSV file, you can use pandas to load it:
 df = pd.read_csv('data/parsed_data.csv', sep=';')
-X = df[['digit_0_distance', 'digit_1_distance', 'digit_2_distance', 'digit_3_distance', 'digit_4_distance']]  
+X = df[['palm_normal_y', 'digit_0_distance', 'digit_1_distance', 'digit_2_distance', 'digit_3_distance', 'digit_4_distance']]  
 y = df['label']
 print(f"Test solo distanze scalari")
+
+# Normalize the dataset
+scaler = StandardScaler()
+X_normalized = scaler.fit_transform(X)
+X = pd.DataFrame(X_normalized, columns=X.columns)
+
+# Export the scaler for future use
+joblib.dump(scaler, 'scalerNoSpike.pkl')
+print(f"Test solo distanze scalari - Dataset normalized")
+print(f"Scaler exported to 'scalerNoSpike.pkl'")
 
 # 2. Split the data into training and testing sets (80% train, 20% test)
 X_train, X_test, y_train, y_test = train_test_split(
@@ -25,21 +37,21 @@ X_train, X_test, y_train, y_test = train_test_split(
 # 3. Initialize the XGBoost Classifier
 # Key parameters for multi-class classification are 'objective' and 'num_class'
 
-# parameters for the XGBoost model with no spikes {'learning_rate': 0.18930047114968612, 'max_depth': 5, 'min_child_weight': 3, 'subsample': 0.9473915322486007, 'colsample_bytree': 0.9183943274926889, 'gamma': 0.968651621504979, 'reg_alpha': 0.012833369374564257, 'reg_lambda': 1.2681187312383455e-07, 'n_estimators': 631}
+# parameters for the XGBoost model with no spikes {'learning_rate': 0.19969893459885074, 'max_depth': 11, 'min_child_weight': 3, 'subsample': 0.9247919725331971, 'colsample_bytree': 0.9880565237371193, 'gamma': 0.7433223803722873, 'reg_alpha': 0.00522616507787177, 'reg_lambda': 5.0397762306422554e-05, 'n_estimators': 677}
 xgb_model = xgb.XGBClassifier(
     objective='multi:softprob', # Use multi:softmax for multiple classes
     num_class=y.nunique(),               # The number of classes in your dataset
     device='cuda:0',
     tree_method='hist',
-    n_estimators=631,
+    n_estimators=677,
     min_child_weight=3, 
-    max_depth=5, 
-    learning_rate=0.18930047114968612,
-    subsample=0.9473915322486007,
-    colsample_bytree= 0.9183943274926889,
-    gamma= 0.968651621504979,
-    reg_alpha= 0.012833369374564257,
-    reg_lambda=1.2681187312383455e-07
+    max_depth=11, 
+    learning_rate=0.19969893459885074,
+    subsample=0.9247919725331971,
+    colsample_bytree= 0.9880565237371193,
+    gamma= 0.7433223803722873,
+    reg_alpha= 0.00522616507787177,
+    reg_lambda=5.0397762306422554e-05
 )
 
 # # Optional: You can perform hyperparameter tuning using GridSearchCV or RandomizedSearchCV
