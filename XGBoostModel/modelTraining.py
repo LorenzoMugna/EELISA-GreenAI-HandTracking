@@ -11,9 +11,11 @@ from sklearn.metrics import accuracy_score, classification_report
 # 1. TODO import your dataset and preprocess it to get features (X) and labels (y)
 # For example, if you have a CSV file, you can use pandas to load it:
 df = pd.read_csv('./data/parsed_spikes_data_total.csv')
-X = df[['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch5_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms', 'ch5_var_isi_ms']]
+X = df[['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms']]
 y = df['label']
 print(f"Test solo distanze scalari")
+
+print(df.head())
 
 # Normalize the dataset
 scaler = StandardScaler()
@@ -58,21 +60,21 @@ print(f"Added {n_synthetic} synthetic samples with Gaussian noise on X only (std
 # Key parameters for multi-class classification are 'objective' and 'num_class'
 
 # parameters for the XGBoost model with no spikes {'learning_rate': 0.19969893459885074, 'max_depth': 11, 'min_child_weight': 3, 'subsample': 0.9247919725331971, 'colsample_bytree': 0.9880565237371193, 'gamma': 0.7433223803722873, 'reg_alpha': 0.00522616507787177, 'reg_lambda': 5.0397762306422554e-05, 'n_estimators': 677}
-# parameters for the XGBoost model with spikes {'learning_rate': 0.18572129841488952, 'max_depth': 9, 'min_child_weight': 1, 'subsample': 0.8665837305231249, 'colsample_bytree': 0.8661009157248534, 'gamma': 0.002145047496642058, 'reg_alpha': 2.5597617059669192e-05, 'reg_lambda': 4.100617847237646e-08, 'n_estimators': 692}
+# parameters for the XGBoost model with spikes {'learning_rate': 0.1999539268079292, 'max_depth': 6, 'min_child_weight': 1, 'subsample': 0.9285279667145103, 'colsample_bytree': 0.6219272528357007, 'gamma': 0.0003440960411132573, 'reg_alpha': 0.04461381011100703, 'reg_lambda': 6.196009813271903e-07, 'n_estimators': 522}
 xgb_model = xgb.XGBClassifier(
     objective='multi:softprob', # Use multi:softmax for multiple classes
     num_class=y.nunique(),               # The number of classes in your dataset
     device='cuda:0',
     tree_method='hist',
-    n_estimators=692,
+    n_estimators=522,
     min_child_weight=1, 
-    max_depth=9, 
-    learning_rate=0.18572129841488952,
-    subsample=0.8665837305231249,
-    colsample_bytree= 0.8661009157248534,
-    gamma= 0.002145047496642058,
-    reg_alpha= 2.5597617059669192e-05,
-    reg_lambda=4.100617847237646e-08
+    max_depth=6, 
+    learning_rate=0.1999539268079292,
+    subsample=0.9285279667145103,
+    colsample_bytree= 0.6219272528357007,
+    gamma= 0.0003440960411132573,
+    reg_alpha= 0.04461381011100703,
+    reg_lambda=6.196009813271903e-07
 )
 
 # # Optional: You can perform hyperparameter tuning using GridSearchCV or RandomizedSearchCV

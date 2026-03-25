@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score, classification_report
 
 # ... [Load your data into X and y as before] ...
 df = pd.read_csv('../data/parsed_spikes_data_total.csv')
-X = df[['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch5_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms', 'ch5_var_isi_ms']]
+X = df[['ch0_rate_hz', 'ch1_rate_hz', 'ch2_rate_hz', 'ch3_rate_hz', 'ch4_rate_hz', 'ch0_var_isi_ms', 'ch1_var_isi_ms', 'ch2_var_isi_ms', 'ch3_var_isi_ms', 'ch4_var_isi_ms']]
 y = df['label']
 
 # Normalize the dataset
