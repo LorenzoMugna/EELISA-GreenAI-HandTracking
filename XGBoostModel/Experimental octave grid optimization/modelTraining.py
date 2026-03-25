@@ -4,14 +4,25 @@ import numpy as np
 import pandas as pd
 import optuna
 import matplotlib.pyplot as plt
+import joblib
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report
 
 # ... [Load your data into X and y as before] ...
 df = pd.read_csv('../data/parsed_data.csv', sep=';')
-X = df[['digit_0_distance', 'digit_1_distance', 'digit_2_distance', 'digit_3_distance', 'digit_4_distance']]
+X = df[['palm_normal_y', 'digit_0_distance', 'digit_1_distance', 'digit_2_distance', 'digit_3_distance', 'digit_4_distance']]
 y = df['label']
-print(f"Test solo distanze scalari")
+
+# Normalize the dataset
+scaler = StandardScaler()
+X_normalized = scaler.fit_transform(X)
+X = pd.DataFrame(X_normalized, columns=X.columns)
+
+# Export the scaler for future use
+joblib.dump(scaler, 'scaler.pkl')
+print(f"Test solo distanze scalari - Dataset normalized")
+print(f"Scaler exported to 'scaler.pkl'")
 
 
 X_train_full, X_test, y_train_full, y_test = train_test_split(
@@ -81,7 +92,7 @@ def objective(trial):
 
 # 6. Run the optimization study
 study = optuna.create_study(direction='minimize')
-study.optimize(objective, n_trials=200)
+study.optimize(objective, n_trials=500)
 
 print(f"Best parameters: {study.best_params}")
 
