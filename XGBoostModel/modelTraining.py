@@ -3,6 +3,7 @@ from sklearn.discriminant_analysis import StandardScaler
 import xgboost as xgb
 import pandas as pd
 import cupy as cp
+import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import RandomizedSearchCV, train_test_split, StratifiedKFold, cross_val_score
 from sklearn.metrics import accuracy_score, classification_report
@@ -32,6 +33,25 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y,
     random_state=42
 )
+
+# Add a small amount of synthesized training data with Gaussian noise
+rng = np.random.default_rng(42)
+augmentation_fraction = 0.20
+noise_std = 0.01
+n_synthetic = max(1, int(len(X_train) * augmentation_fraction))
+original_classes = set(y_train.unique())
+
+sample_indices = rng.integers(0, len(X_train), size=n_synthetic)
+X_synthetic = X_train.iloc[sample_indices].copy()
+X_synthetic += rng.normal(0.0, noise_std, size=X_synthetic.shape)
+y_synthetic = y_train.iloc[sample_indices].copy()
+
+if not set(y_synthetic.unique()).issubset(original_classes):
+    raise ValueError("Synthetic labels must remain unchanged and within original classes")
+
+X_train = pd.concat([X_train.reset_index(drop=True), X_synthetic.reset_index(drop=True)], ignore_index=True)
+y_train = pd.concat([y_train.reset_index(drop=True), y_synthetic.reset_index(drop=True)], ignore_index=True)
+print(f"Added {n_synthetic} synthetic samples with Gaussian noise on X only (std={noise_std})")
 
 
 # 3. Initialize the XGBoost Classifier
