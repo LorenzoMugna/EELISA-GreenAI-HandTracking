@@ -32,24 +32,51 @@ from leap_lts_core import (
 
 COLORS = plt.colormaps["plasma"](np.linspace(0.2, 0.9, N_CHANNELS))
 
+# ── themes ────────────────────────────────────────────────────────────────────
+THEMES = {
+    "dark": dict(
+        fig_bg      = "#12121f",
+        ax_bg       = "#0a0a1a",
+        text        = "white",
+        text_sub    = "#aaaacc",
+        spine       = "#333",
+        grid        = "#222",
+        cal_bg      = "#12121fee",
+        cal_prog_bg = "#2a2a3e",
+        radio_bg    = "#1e1e32",
+    ),
+    "light": dict(
+        fig_bg      = "#f4f4f8",
+        ax_bg       = "#ffffff",
+        text        = "#111111",
+        text_sub    = "#555577",
+        spine       = "#bbbbbb",
+        grid        = "#e0e0e0",
+        cal_bg      = "#f4f4f8ee",
+        cal_prog_bg = "#d0d0e8",
+        radio_bg    = "#e4e4f0",
+    ),
+}
+
 
 # ── GUI ───────────────────────────────────────────────────────────────────────
-def run_gui() -> None:
-    fig = plt.figure(figsize=(12, 7), facecolor="#12121f")
+def run_gui(theme: str = "dark") -> None:
+    t = THEMES[theme]
+    fig = plt.figure(figsize=(12, 7), facecolor=t["fig_bg"])
 
     # ── raster ────────────────────────────────────────────────────────────────
     raster_ax = fig.add_axes((0.08, 0.38, 0.78, 0.54))
-    raster_ax.set_facecolor("#0a0a1a")
+    raster_ax.set_facecolor(t["ax_bg"])
     raster_ax.set_xlim(0, WINDOW_MS)
     raster_ax.set_ylim(-0.5, N_CHANNELS - 0.5)
-    raster_ax.set_xlabel("time  (ms)", color="white", labelpad=6)
-    raster_ax.tick_params(colors="white")
+    raster_ax.set_xlabel("time  (ms)", color=t["text"], labelpad=6)
+    raster_ax.tick_params(colors=t["text"])
     raster_ax.set_yticks(range(N_CHANNELS))
-    raster_ax.set_yticklabels(CHANNEL_NAMES, color="white")
+    raster_ax.set_yticklabels(CHANNEL_NAMES, color=t["text"])
     for spine in raster_ax.spines.values():
-        spine.set_edgecolor("#333")
+        spine.set_edgecolor(t["spine"])
     for i in range(N_CHANNELS):
-        raster_ax.axhline(i, color="#222", linewidth=0.5, zorder=0)
+        raster_ax.axhline(i, color=t["grid"], linewidth=0.5, zorder=0)
 
     scatters = [
         raster_ax.scatter([], [], s=60, color=COLORS[i], marker="|", linewidths=2, zorder=3)
@@ -58,15 +85,15 @@ def run_gui() -> None:
 
     # ── input bar chart ───────────────────────────────────────────────────────
     bar_ax = fig.add_axes((0.08, 0.07, 0.78, 0.24))
-    bar_ax.set_facecolor("#0a0a1a")
+    bar_ax.set_facecolor(t["ax_bg"])
     bar_ax.set_xlim(-0.5, N_CHANNELS - 0.5)
     bar_ax.set_ylim(0, 200)
     bar_ax.set_xticks(range(N_CHANNELS))
-    bar_ax.set_xticklabels(CHANNEL_NAMES, color="white", fontsize=8)
-    bar_ax.set_ylabel("input value", color="white", labelpad=6)
-    bar_ax.tick_params(colors="white")
+    bar_ax.set_xticklabels(CHANNEL_NAMES, color=t["text"], fontsize=8)
+    bar_ax.set_ylabel("input value", color=t["text"], labelpad=6)
+    bar_ax.tick_params(colors=t["text"])
     for spine in bar_ax.spines.values():
-        spine.set_edgecolor("#333")
+        spine.set_edgecolor(t["spine"])
 
     bars = bar_ax.bar(range(N_CHANNELS), [0.0] * N_CHANNELS,
                       color=COLORS, width=0.6, zorder=3)
@@ -84,13 +111,13 @@ def run_gui() -> None:
                 color=COLORS[rot_idx], lw=1.2, ls="--", alpha=0.5)
 
     # ── encoding mode radio buttons ───────────────────────────────────────────
-    radio_ax = fig.add_axes((0.87, 0.12, 0.12, 0.18), facecolor="#1e1e32")
-    radio_ax.set_title("Encoding", color="white", fontsize=9, pad=4)
+    radio_ax = fig.add_axes((0.87, 0.12, 0.12, 0.18), facecolor=t["radio_bg"])
+    radio_ax.set_title("Encoding", color=t["text"], fontsize=9, pad=4)
     radio = RadioButtons(
         radio_ax,
         labels=[MODE_TONIC, MODE_PHASIC],
         active=0,
-        label_props={"color": ["white", "white"], "fontsize": [10, 10]},
+        label_props={"color": [t["text"], t["text"]], "fontsize": [10, 10]},
         radio_props={"facecolor": ["#7c4dff", "#ff4d7c"]},
     )
 
@@ -112,20 +139,21 @@ def run_gui() -> None:
 
     # ── calibration overlay ───────────────────────────────────────────────────
     cal_ax = fig.add_axes((0.08, 0.38, 0.78, 0.54))
-    cal_ax.set_facecolor("#12121fee")
+    cal_ax.set_facecolor(t["cal_bg"])
     cal_ax.set_xlim(0, 1)
     cal_ax.set_ylim(0, 1)
     cal_ax.set_axis_off()
 
     cal_title = cal_ax.text(0.5, 0.72, "", ha="center", va="center",
-                            color="white", fontsize=16, fontweight="bold",
+                            color=t["text"], fontsize=16, fontweight="bold",
                             transform=cal_ax.transAxes)
     cal_sub   = cal_ax.text(0.5, 0.55, "", ha="center", va="center",
-                            color="#aaaacc", fontsize=11,
+                            color=t["text_sub"], fontsize=11,
                             transform=cal_ax.transAxes)
     prog_bg   = mpatches.FancyBboxPatch((0.15, 0.35), 0.70, 0.06,
                     boxstyle="round,pad=0.01", linewidth=0,
-                    facecolor="#2a2a3e", transform=cal_ax.transAxes, zorder=2)
+                    facecolor=t["cal_prog_bg"],
+                    transform=cal_ax.transAxes, zorder=2)
     prog_fill = mpatches.FancyBboxPatch((0.15, 0.35), 0.0, 0.06,
                     boxstyle="round,pad=0.01", linewidth=0,
                     facecolor="#7c4dff", transform=cal_ax.transAxes, zorder=3)
@@ -154,7 +182,7 @@ def run_gui() -> None:
         if not cal_phase_done_shown[0]:
             cal_ax.set_visible(False)
             fig.suptitle("Leap Motion → LTS Spike Raster",
-                         color="white", fontsize=13, y=0.98)
+                         color=t["text"], fontsize=13, y=0.98)
             bar_ax.set_ylim(0, max(max(cal_max) * 1.15, 200))
             for i, (lo_line, hi_line) in enumerate(range_lines):
                 for line, y in ((lo_line, cal_min[i]), (hi_line, cal_max[i])):
@@ -186,6 +214,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-udp", action="store_true", help="disable UDP spike sending")
     parser.add_argument("--udp-ip", default="10.97.150.1", help="UDP target IP (default: 10.97.150.1)")
+    parser.add_argument("--light", action="store_true", help="use light color theme")
     args = parser.parse_args()
 
     if not args.no_udp:
@@ -197,7 +226,7 @@ def main() -> None:
 
     with connection.open():
         try:
-            run_gui()
+            run_gui(theme="light" if args.light else "dark")
         finally:
             stop_event.set()
 
